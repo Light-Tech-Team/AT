@@ -1,38 +1,30 @@
-from flask_restful import Resource, marshal_with
-from models import *
 from extensions import db
-from .src.fields import *
-from .src.args import *
+from flask_restful import Resource, marshal_with
+from models import History, Line, Convention, Promotion, Client
+
+from .src.args import put_history_entity_args, put_promotion_args, post_promotion_args, \
+    put_client_args, post_client_args
+from .src.fields import history_entity_fields, promotion_fields, client_fields
 
 
 class EntityResource(Resource):
-    entity_fields = {  
-    'id',
-    'date',
-    'promotion_namepr',
-    'promotion_typepr',
-    'convention_namecv',
-    'line_numberl',
-    'line_street',
-    'line_serv',
-    'cession_idcs',
-}
     @marshal_with(history_entity_fields)
     def get(self, id):
-    # extract the fields from the database by history id
-        query = db.session.query(History.id, History.date, Promotion.namepr, 
-                             Promotion.typepr, Convention.namecv, Line.numberl,
-                             Line.street, Line.serv).\
-                                filter(History.id == id).\
-                                    join(Promotion , History.idp == Promotion.idp).\
-                                        join(Convention, History.idcv == Convention.idcv).\
-                                            join(Line, History.idl == Line.idl)
-                                                
+        # extract the fields from the database by history id
+        query = db.session.query(History.id, History.date, Promotion.namepr,
+                                 Promotion.typepr, Convention.namecv, Line.numberl,
+                                 Line.street, Line.serv). \
+            filter(History.id == id). \
+            join(Promotion, History.idp == Promotion.idp). \
+            join(Convention, History.idcv == Convention.idcv). \
+            join(Line, History.idl == Line.idl)
+
         return query.all()
-    
+
     @marshal_with(history_entity_fields)
     def put(self, id):
         # update the values of database tables by history id
+        # im sure this is a bad practice and theres better ways to do this
         args = put_history_entity_args.parse_args()
         history_query = db.session.query(History).filter(History.id == id).first()
         if args['date']:
@@ -40,7 +32,7 @@ class EntityResource(Resource):
             db.session.commit()
         if args['namepr']:
             promotion_query = db.session.query(Promotion).filter(Promotion.idp == history_query.idp).first()
-            promotion_query.namepr = args.namepr
+            promotion_query.namepr = args['namepr']
             db.session.commit()
         if args['typepr']:
             promotion_query = db.session.query(Promotion).filter(Promotion.idp == history_query.idp).first()
@@ -61,7 +53,7 @@ class EntityResource(Resource):
         if args['serv']:
             line_query = db.session.query(Line).filter(Line.idl == history_query.idl).first()
             line_query.serv = args.serv
-            db.session.commit()           
+            db.session.commit()
 
 
 class PromotionResource(Resource):
@@ -69,7 +61,7 @@ class PromotionResource(Resource):
     def get(self):
         promotion = Promotion.query.all()
         return promotion
-    
+
     @marshal_with(promotion_fields)
     def post(self):
         args = post_promotion_args.parse_args()
@@ -82,7 +74,7 @@ class PromotionResource(Resource):
             db.session.commit()
             response = {'message': 'Promotion created!'}
         return response
-    
+
     @marshal_with(promotion_fields)
     def put(self):
         args = put_promotion_args.parse_args()
@@ -96,7 +88,7 @@ class PromotionResource(Resource):
         else:
             response = {'message': 'Promotion does not exist!'}
         return response
-    
+
     @marshal_with(promotion_fields)
     def delete(self):
         args = put_promotion_args.parse_args()
@@ -113,9 +105,10 @@ class PromotionResource(Resource):
 class ClientResource(Resource):
     @marshal_with(client_fields)
     def get(self):
-        client = Client.query.all()
+        args = put_client_args.parse_args()
+        client = Client.query.filter_by(idc=args['idc']).all()
         return client
-    
+
     @marshal_with(client_fields)
     def post(self):
         print("post")
@@ -132,7 +125,7 @@ class ClientResource(Resource):
             print("client added")
             response = {'message': 'Client created!'}
         return response
-    
+
     @marshal_with(client_fields)
     def put(self):
         args = put_client_args.parse_args()
@@ -158,4 +151,3 @@ class ClientResource(Resource):
         else:
             response = {'message': 'Client does not exist!'}
         return response
- 
